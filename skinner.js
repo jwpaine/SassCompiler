@@ -8,9 +8,8 @@ let enable_upload = true
 
 let upload = function(host, port, username, key, local, remote) {
 
-	console.log(`pretend: ${local} -> ${remote}`)
+	console.log(`uploading: ${local} -> ${remote}`)
 
-	return;
 	var conn = new Client();
 	conn.on('ready', function() {
 	  console.log('Client :: ready');
@@ -58,8 +57,7 @@ let directory = process.argv[2]
 let src_directory = directory + 'css/'
 
 let file_map = {
-	'v1.scss' : 'v1.css',
-	'v2.scss' : 'v2.css'
+	'v1.scss' : 'v1.css'
 }
 
 if (fs.existsSync(directory)) {
@@ -73,16 +71,15 @@ if (fs.existsSync(directory)) {
 	watcher
   		.on('change', path => {
   			//for each key-value pair in file_map, compile...
-<<<<<<< HEAD
   			console.log(`changed: ${path}`)
 				// upload changed file
 				upload(c8config.host, c8config.port, config.sftp.username, config.sftp.privateKey, path, c8config.base_dir + path.split(directory + 'css/')[1])
-=======
+
   			console.log(`src directory: ${src_directory}`)
   			console.log(`local change: ${path.split(src_directory)[1]}`)
   			let file_change = path.split(src_directory)[1];
   			// transfer compiled files
->>>>>>> 7a4e9cf304b1fefc2b6101b79a4e4e654f835c27
+
   			for(input in file_map) {
   				let output = file_map[input]
   				compile(directory + 'css/src/' + input, directory + 'css/' + output, function(err) {
@@ -97,7 +94,7 @@ if (fs.existsSync(directory)) {
   					}
 
   					console.log('upload disabled: ')
-  					console.log(`${local} --> ${remote}`)
+  					console.log(`Pretending: ${local} --> ${remote}`)
   				})
   			}
   				// move modified file in the src directory
@@ -106,7 +103,7 @@ if (fs.existsSync(directory)) {
 					return
   				}
   				console.log('upload disabled: ')
-  				console.log(`${path} --> ${c8config.base_dir + file_change}`)
+  				console.log(`Pretending: ${path} --> ${c8config.base_dir + file_change}`)
   		})
 
 } else {
