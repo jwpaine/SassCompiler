@@ -1,0 +1,5 @@
+module.exports = {
+		'host' : 'ggc8admin3.avetti.ca',
+		'port' : 5511,
+		'base_dir' : '/avetti/httpd/htdocs/content/preview/store/20190723594/assets/themes/blaze_en/css/'
+}
