@@ -4,14 +4,13 @@ var Client = require('ssh2').Client;
 var chokidar = require('chokidar');
 var sass = require('node-sass');
 
-let enable_upload = true  
+let enable_upload = false   
 
 let connect = function(host, port, username, key, callback) {
 
 	var conn = new Client();
 	conn.on('ready', function() {
-	  console.log('SSH Client :: connected and ready');
-	  	callback(conn)
+		callback(conn)
 	}).connect({
 	  host: host,
 	  port: port,
@@ -19,11 +18,22 @@ let connect = function(host, port, username, key, callback) {
 	  privateKey: require('fs').readFileSync(key)
 	});
 
+	conn.on('end', function () {
+    	console.log('Client :: ended');
+    	conn.end();
+	})
+
 }
 
 
+ 
+let upload = function(conn, local, remote) {
 
-let upload = function(connection, local, remote) {
+	
+	if(!enable_upload) {
+		console.log('upload returning early');
+		return // early
+	}
 
 	console.log(`uploading: ${local} -> ${remote}`)
 
@@ -77,56 +87,54 @@ if (fs.existsSync(directory)) {
 	let c8config = require(directory + '/.c8config')
 	console.log(`loaded config: ${JSON.stringify(c8config)}`)
 
-	// connect once
-	console.log('Connecting via ssh...')
-	connect(c8config.host, c8config.port, config.sftp.username, config.sftp.privateKey, function(connection) {
-
-		console.log(`watching ${directory + 'css/src/'} for changes...`)
+	console.log(`watching ${directory + 'css/src/'} for changes...`)
 		let watcher = chokidar.watch(directory + 'css/src/', {
 		  persistent: true
 		});
 		watcher
 	  		.on('change', path => {
 	  			//for each key-value pair in file_map, compile...
-	  			console.log(`changed: ${path}`)
-				// upload changed file
-				console.log(`src directory: ${src_directory}`)
-	  			console.log(`local change: ${path.split(src_directory)[1]}`)
-	  			if(enable_upload) {
+
+	  			// return connection
+	  			connect(c8config.host, c8config.port, config.sftp.username, config.sftp.privateKey, function(connection) {
+					console.log('SSH Client :: connected and ready');
+				
+		  			console.log(`file changed: ${path}`)
+					// upload changed file
+					console.log(`src directory: ${src_directory}`)
+		  			console.log(`local change: ${path.split(src_directory)[1]}`)
+		  			
 					upload(connection, path, c8config.base_dir + path.split(directory + 'css/')[1])
-				} else {
-					console.log(`Pretending: ${path} --> ${c8config.base_dir + path.split(directory + 'css/')[1]}`)
-				}
-	  			
-	  			let file_change = path.split(src_directory)[1];
-	  			// transfer compiled files
-	  			for(input in file_map) {
-	  				let output = file_map[input]
-	  				compile(directory + 'css/src/' + input, directory + 'css/' + output, function(err) {
-	  				if (err) throw err;
+					
+		  			
+		  			let file_change = path.split(src_directory)[1];
+		  			// transfer compiled files
+		  			for(input in file_map) {
+		  				let output = file_map[input]
+		  				compile(directory + 'css/src/' + input, directory + 'css/' + output, function(err) {
+		  				if (err) throw err;
 
-	  					let local = directory + 'css/' + output
-	  					let remote = c8config.base_dir + output;
+		  					let local = directory + 'css/' + output
+		  					let remote = c8config.base_dir + output;
 
-	  					if(enable_upload) {
 							upload(connection, local, remote)
-							return
-	  					}
+							
 
-	  					console.log('upload disabled: ')
-	  					console.log(`Pretending: ${local} --> ${remote}`)
-	  				})
-	  			}
-	  				// move modified file in the src directory
-	  				if(enable_upload) {
+		  				})
+		  			}
+		  				// move modified file in the src directory
+		  				
 						upload(connection, path, c8config.base_dir + file_change)
-						return
-	  				}
-	  				console.log('upload disabled: ')
-	  				console.log(`Pretending: ${path} --> ${c8config.base_dir + file_change}`)
+						
+
+						// destroy connection
+						connection.end(); 
+	  			}); // end connect
+
+
 	  		})
 
-	})
+	
 
 } else {
 	console.log('Supply directory')
