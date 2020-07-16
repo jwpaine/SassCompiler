@@ -4,18 +4,39 @@ var Client = require('ssh2').Client;
 var chokidar = require('chokidar');
 var sass = require('node-sass');
 
-let enable_upload = false   
+let enable_upload = true  
 
-let connect = function(host, port, username, key, callback) {
 
+ 
+let upload = function(c8config, local, remote) {
+
+	
+	if(!enable_upload) {
+		console.log('upload returning early');
+		return // early
+	}
 	var conn = new Client();
 	conn.on('ready', function() {
-		callback(conn)
+		console.log('connected')  
+		// transfer files
+		console.log(`uploading: ${local} -> ${remote}`)
+		conn.sftp(function(err, sftp) {
+		    if (err) throw err;
+			fs.readFile(local, 'utf8', function(err, contents) {
+				if(err) throw err
+				sftp.writeFile(remote, contents, function(err) {
+					if (err) throw err
+					console.log('transferred')
+					// end connection
+					conn.end()
+				});
+			});
+		 });
 	}).connect({
-	  host: host,
-	  port: port,
-	  username: username,
-	  privateKey: require('fs').readFileSync(key)
+	  host: c8config.host,
+	  port: c8config.port,
+	  username: config.sftp.username,
+	  privateKey: require('fs').readFileSync(config.sftp.privateKey)
 	});
 
 	conn.on('end', function () {
@@ -23,30 +44,6 @@ let connect = function(host, port, username, key, callback) {
     	conn.end();
 	})
 
-}
-
-
- 
-let upload = function(conn, local, remote) {
-
-	
-	if(!enable_upload) {
-		console.log('upload returning early');
-		return // early
-	}
-
-	console.log(`uploading: ${local} -> ${remote}`)
-
-	  conn.sftp(function(err, sftp) {
-	    if (err) throw err;
-		fs.readFile(local, 'utf8', function(err, contents) {
-			if(err) throw err
-			sftp.writeFile(remote, contents, function(err) {
-				if (err) throw err
-				console.log('transferred')
-			});
-		});
-	  });
 }
 
 let compile = function(scss_file, css_file, callback) {
@@ -79,9 +76,6 @@ let file_map = {
 }
 
 
-
-
-
 if (fs.existsSync(directory)) {
 	// load site specific config
 	let c8config = require(directory + '/.c8config')
@@ -96,7 +90,7 @@ if (fs.existsSync(directory)) {
 	  			//for each key-value pair in file_map, compile...
 
 	  			// return connection
-	  			connect(c8config.host, c8config.port, config.sftp.username, config.sftp.privateKey, function(connection) {
+	  		
 					console.log('SSH Client :: connected and ready');
 				
 		  			console.log(`file changed: ${path}`)
@@ -104,7 +98,7 @@ if (fs.existsSync(directory)) {
 					console.log(`src directory: ${src_directory}`)
 		  			console.log(`local change: ${path.split(src_directory)[1]}`)
 		  			
-					upload(connection, path, c8config.base_dir + path.split(directory + 'css/')[1])
+					upload(c8config, path, c8config.base_dir + path.split(directory + 'css/')[1])
 					
 		  			
 		  			let file_change = path.split(src_directory)[1];
@@ -117,19 +111,18 @@ if (fs.existsSync(directory)) {
 		  					let local = directory + 'css/' + output
 		  					let remote = c8config.base_dir + output;
 
-							upload(connection, local, remote)
+							upload(c8config, local, remote)
 							
 
 		  				})
 		  			}
 		  				// move modified file in the src directory
 		  				
-						upload(connection, path, c8config.base_dir + file_change)
+						upload(c8config, path, c8config.base_dir + file_change)
 						
 
 						// destroy connection
-						connection.end(); 
-	  			}); // end connect
+			
 
 
 	  		})
